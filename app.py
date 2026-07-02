@@ -64,10 +64,18 @@ if len(st.session_state.random_history) > 20:
 
 # --- [사이드바 자산 계산 로직] ---
 total_stock_value = 0
+total_invested = 0
 
+# 💡 [핵심 수정] TypeError 방지 및 세션 초기화 예외 처리
 for stock_name, info in list(st.session_state.portfolio.items()):
+    # 혹시 세션 내부 데이터가 int 등으로 깨져있다면 스킵하거나 초기화해서 에러 차단
+    if not isinstance(info, dict) or "수량" not in info or "매수총액_원화" not in info:
+        del st.session_state.portfolio[stock_name]
+        continue
+        
     if "코인주" in stock_name:
         total_stock_value += (st.session_state.random_stock_price * info["수량"])
+        total_invested += info["매수총액_원화"]
         continue
 
     if stock_name in STOCK_DICT and STOCK_DICT[stock_name][0] != "CUSTOM":
@@ -86,10 +94,9 @@ for stock_name, info in list(st.session_state.portfolio.items()):
             c_price = s_data['Close'].iloc[-1]
             c_price_krw = c_price * EXCHANGE_RATE if c_type == "US" else c_price
             total_stock_value += (c_price_krw * info["수량"])
+            total_invested += info["매수총액_원화"]
     except:
         pass
-
-total_invested = sum(info["매수총액_원화"] for info in st.session_state.portfolio.values())
 
 if total_invested > 0:
     total_assets = st.session_state.cash + total_stock_value
@@ -107,7 +114,6 @@ st.sidebar.metric(label="📊 총 평가 자산 (예수금+투자금)", value=f"
 st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
 st.sidebar.write(f"📈 주식 평가액: {total_stock_value:,.0f} 원")
 
-# 🛡️ 버그 원인이었던 부분 안전하게 서식 수정 (+ 표시와 콤마 정렬 고침)
 if total_invested > 0:
     st.sidebar.write("---")
     st.sidebar.metric(
@@ -128,10 +134,11 @@ else:
 st.sidebar.write("---")
 st.sidebar.subheader("💼 내 포트폴리오")
 if st.session_state.portfolio:
-    for stock_name, info in st.session_state.portfolio.items():
-        avg_price = info["매수총액_원화"] / info["수량"]
-        st.sidebar.write(f"- **{stock_name}**: {info['수량']}주")
-        st.sidebar.caption(f"  (평단가: {avg_price:,.0f}원)")
+    for stock_name, info in list(st.session_state.portfolio.items()):
+        if isinstance(info, dict) and "수량" in info and info["수량"] > 0:
+            avg_price = info["매수총액_원화"] / info["수량"]
+            st.sidebar.write(f"- **{stock_name}**: {info['수량']}주")
+            st.sidebar.caption(f"  (평단가: {avg_price:,.0f}원)")
 else:
     st.sidebar.write("보유 중인 주식이 없습니다.")
 
@@ -160,7 +167,9 @@ with tab_trade:
             st.markdown(f"### {display_name}")
             st.metric(label="현재 주가 (1초마다 자동 변동)", value=f"{current_price_krw:,.0f} 원")
             
-            current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
+            # 여기서도 한 번 더 안전하게 처리
+            portfolio_info = st.session_state.portfolio.get(display_name)
+            current_owned = portfolio_info["수량"] if isinstance(portfolio_info, dict) else 0
             st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
             
             quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1, key="rand_qty")
@@ -172,7 +181,7 @@ with tab_trade:
                 if st.button("🔴 매수하기", use_container_width=True, key="rand_buy"):
                     if st.session_state.cash >= total_cost_krw:
                         st.session_state.cash -= total_cost_krw
-                        if display_name not in st.session_state.portfolio:
+                        if display_name not in st.session_state.portfolio or not isinstance(st.session_state.portfolio[display_name], dict):
                             st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
                         st.session_state.portfolio[display_name]["수량"] += quantity
                         st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
@@ -186,7 +195,7 @@ with tab_trade:
                         
             with btn_sell:
                 if st.button("🔵 매도하기", use_container_width=True, key="rand_sell"):
-                    if display_name in st.session_state.portfolio and st.session_state.portfolio[display_name]["수량"] >= quantity:
+                    if display_name in st.session_state.portfolio and isinstance(st.session_state.portfolio[display_name], dict) and st.session_state.portfolio[display_name]["수량"] >= quantity:
                         avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
                         st.session_state.cash += total_cost_krw
                         st.session_state.portfolio[display_name]["수량"] -= quantity
@@ -247,7 +256,8 @@ with tab_trade:
                     else:
                         st.metric(label="현재 주가", value=f"{raw_price:,.0f} 원")
                     
-                    current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
+                    portfolio_info = st.session_state.portfolio.get(display_name)
+                    current_owned = portfolio_info["수량"] if isinstance(portfolio_info, dict) else 0
                     st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
                     
                     quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1, key="normal_qty")
@@ -259,7 +269,7 @@ with tab_trade:
                         if st.button("🔴 매수하기", use_container_width=True, key="normal_buy"):
                             if st.session_state.cash >= total_cost_krw:
                                 st.session_state.cash -= total_cost_krw
-                                if display_name not in st.session_state.portfolio:
+                                if display_name not in st.session_state.portfolio or not isinstance(st.session_state.portfolio[display_name], dict):
                                     st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
                                 st.session_state.portfolio[display_name]["수량"] += quantity
                                 st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
@@ -273,7 +283,7 @@ with tab_trade:
                                 
                     with btn_sell:
                         if st.button("🔵 매도하기", use_container_width=True, key="normal_sell"):
-                            if display_name in st.session_state.portfolio and st.session_state.portfolio[display_name]["수량"] >= quantity:
+                            if display_name in st.session_state.portfolio and isinstance(st.session_state.portfolio[display_name], dict) and st.session_state.portfolio[display_name]["수량"] >= quantity:
                                 avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
                                 st.session_state.cash += total_cost_krw
                                 st.session_state.portfolio[display_name]["수량"] -= quantity
@@ -304,11 +314,9 @@ with tab_shop:
     st.markdown(f"### 💵 내 보유 현금: `{st.session_state.cash:,.0f} 원`")
     st.write("---")
     
-    # 깔끔하게 컴포넌트를 다시 렌더링하기 위해 그리드 레이아웃 생성
     cols = st.columns(3)
     for index, (item_name, price) in enumerate(SHOP_ITEMS.items()):
         with cols[index % 3]:
-            # 컨테이너 상자로 감싸서 카드형 UI 디자인 적용
             with st.container(border=True):
                 st.subheader(item_name)
                 st.markdown(f"💰 가격: **{price:,.0f} 원**")
