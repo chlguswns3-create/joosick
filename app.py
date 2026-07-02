@@ -37,7 +37,7 @@ SHOP_ITEMS = {
 
 # 2. 유저 데이터 및 세션 초기화
 if 'cash' not in st.session_state:
-    st.session_state.cash = 10000000  # 초기 자본: 1,000만 원
+    st.session_state.cash = 10000  # 초기 자본: 1,000만 원
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
 if 'trade_history' not in st.session_state:
@@ -51,7 +51,7 @@ if 'random_stock_price' not in st.session_state:
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
-change_percent = random.uniform(-0.45, 0.15)
+change_percent = random.uniform(-0.45, 0.45)
 st.session_state.random_stock_price *= (1 + change_percent)
 
 if st.session_state.random_stock_price < 10:
