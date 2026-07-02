@@ -58,7 +58,7 @@ if 'random_history' not in st.session_state:
 # =====================================================================
 # 💸 코인주 금액 가감 로직 (상장폐지 제외, 하한선 1원)
 # =====================================================================
-price_change = random.randint(-300, 400) 
+price_change = random.randint(-1000, 1000) 
 st.session_state.random_stock_price += price_change
 
 # 하한선 설정
