@@ -7,7 +7,7 @@ from datetime import datetime
 
 # 1. 페이지 설정 및 제목
 st.set_page_config(layout="wide")
-st.title("📈 초간단 국내/해외 주식 모의투자 시뮬레이터 (with 상점 🏪)")
+st.title("📈 국내/해외 주식 모의투자 시뮬레이터")
 
 # 가상의 환율 설정 (1달러 = 1,400원)
 EXCHANGE_RATE = 1400
