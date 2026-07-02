@@ -39,7 +39,7 @@ if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
 # 상승 최대 +15%, 하락 최대 -45% 불지옥 밸런스 유지
-change_percent = random.uniform(-0.45, 0.15)
+change_percent = random.uniform(-0.45, 0.35)
 st.session_state.random_stock_price *= (1 + change_percent)
 
 # 상장폐지 방지 최소 금액
