@@ -9,14 +9,15 @@ st.title("📈 초간단 국내/해외 주식 모의투자 시뮬레이터")
 # 가상의 환율 설정 (1달러 = 1,400원)
 EXCHANGE_RATE = 1400
 
-# 주식 선택 리스트 설정 (화면 표시 이름: [yfinance 티커, 국가])
+# 주식 선택 리스트 설정
 STOCK_DICT = {
     "삼성전자 🇰🇷": ["005930.KS", "KR"],
     "SK하이닉스 🇰🇷": ["000660.KS", "KR"],
     "애플 (Apple) 🇺🇸": ["AAPL", "US"],
     "테슬라 (Tesla) 🇺🇸": ["TSLA", "US"],
     "엔비디아 (NVIDIA) 🇺🇸": ["NVDA", "US"],
-    "구글 (Google) 🇺🇸": ["GOOGL", "US"]
+    "구글 (Google) 🇺🇸": ["GOOGL", "US"],
+    "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
 # 2. 유저 데이터 초기화 (세션 상태 활용 - 모든 자산은 '원화' 기준)
@@ -37,12 +38,26 @@ if st.session_state.portfolio:
 else:
     st.sidebar.write("보유 중인 주식이 없습니다.")
 
-# 4. 메인 화면 - [변경 포인트] 검색창 대신 선택 박스(Selectbox) 사용!
-selected_stock = st.selectbox("투자할 주식을 선택하세요 👇", list(STOCK_DICT.keys()))
+# 4. 메인 화면 - 선택 박스
+selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()))
 
-# 선택된 주식의 정보 가져오기
-ticker = STOCK_DICT[selected_stock][0]
-country = STOCK_DICT[selected_stock][1]
+# 만약 "직접 검색해서 입력하기 🔍"를 선택했다면 검색창을 띄워줍니다.
+if selected_option == "직접 검색해서 입력하기 🔍":
+    search_ticker = st.text_input("조회하고 싶은 주식의 티커를 입력하세요 (예: MSFT, 005380.KS)", "MSFT").upper()
+    ticker = search_ticker
+    # 한국 주식 코드는 보통 숫자로 끝나거나 .KS가 붙으므로 간단하게 판별합니다.
+    if ".KS" in ticker or ".KQ" in ticker or ticker.isdigit():
+        country = "KR"
+        if ticker.isdigit():  # 숫자만 입력했을 경우 뒤에 .KS를 자동으로 붙여줌
+            ticker = ticker + ".KS"
+        display_name = f"검색된 한국 주식 ({ticker})"
+    else:
+        country = "US"
+        display_name = f"검색된 미국 주식 ({ticker})"
+else:
+    ticker = STOCK_DICT[selected_option][0]
+    country = STOCK_DICT[selected_option][1]
+    display_name = selected_option
 
 try:
     # 주가 데이터 가져오기 (최근 1개월)
@@ -65,7 +80,7 @@ try:
         col1, col2 = st.columns([1, 2])
         
         with col1:
-            st.markdown(f"### {selected_stock}")
+            st.markdown(f"### {display_name}")
             st.metric(label="현재 주가", value=price_display)
             
             # 매수/매도 수량 입력
@@ -80,22 +95,22 @@ try:
                 if st.button("🔴 매수하기", use_container_width=True):
                     if st.session_state.cash >= total_cost_krw:
                         st.session_state.cash -= total_cost_krw
-                        st.session_state.portfolio[selected_stock] = st.session_state.portfolio.get(selected_stock, 0) + quantity
-                        st.success(f"{selected_stock} {quantity}주 매수 완료!")
+                        st.session_state.portfolio[display_name] = st.session_state.portfolio.get(display_name, 0) + quantity
+                        st.success(f"{display_name} {quantity}주 매수 완료!")
                         st.rerun()
                     else:
                         st.error("잔액이 부족합니다!")
                         
             with btn_sell:
                 if st.button("🔵 매도하기", use_container_width=True):
-                    if st.session_state.portfolio.get(selected_stock, 0) >= quantity:
+                    if st.session_state.portfolio.get(display_name, 0) >= quantity:
                         st.session_state.cash += total_cost_krw
-                        st.session_state.portfolio[selected_stock] -= quantity
+                        st.session_state.portfolio[display_name] -= quantity
                         
-                        if st.session_state.portfolio[selected_stock] == 0:
-                            del st.session_state.portfolio[selected_stock]
+                        if st.session_state.portfolio[display_name] == 0:
+                            del st.session_state.portfolio[display_name]
                             
-                        st.success(f"{selected_stock} {quantity}주 매도 완료!")
+                        st.success(f"{display_name} {quantity}주 매도 완료!")
                         st.rerun()
                     else:
                         st.error("보유 수량이 부족합니다!")
@@ -105,7 +120,7 @@ try:
             st.line_chart(df['Close'])
             
     else:
-        st.warning("데이터를 불러올 수 없습니다.")
+        st.warning("존재하지 않는 티커이거나 데이터를 불러올 수 없습니다.")
         
 except Exception as e:
     st.error(f"오류가 발생했습니다: {e}")
