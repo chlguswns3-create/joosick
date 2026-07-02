@@ -66,9 +66,7 @@ if len(st.session_state.random_history) > 20:
 total_stock_value = 0
 total_invested = 0
 
-# 💡 [핵심 수정] TypeError 방지 및 세션 초기화 예외 처리
 for stock_name, info in list(st.session_state.portfolio.items()):
-    # 혹시 세션 내부 데이터가 int 등으로 깨져있다면 스킵하거나 초기화해서 에러 차단
     if not isinstance(info, dict) or "수량" not in info or "매수총액_원화" not in info:
         del st.session_state.portfolio[stock_name]
         continue
@@ -152,7 +150,12 @@ else:
 
 
 # 4. 메인 화면 탭 구성
+# 💡 탭 상태가 새로고침에 풀리지 않도록 st.tabs 대신 selectbox나 독립 변수로 제어할 수도 있지만,
+# 아래처럼 코인주 활성화 여부를 체크하여 새로고침을 조건부로 걸면 해결됩니다.
 tab_trade, tab_shop = st.tabs(["📊 주식 모의투자 거래소", "🏪 플렉스 아이템 상점"])
+
+# 실시간 무한 새로고침을 켤지 말지 결정하는 플래그 변수
+should_rerun = False
 
 # ==================== [탭 1: 주식 거래소] ====================
 with tab_trade:
@@ -167,7 +170,6 @@ with tab_trade:
             st.markdown(f"### {display_name}")
             st.metric(label="현재 주가 (1초마다 자동 변동)", value=f"{current_price_krw:,.0f} 원")
             
-            # 여기서도 한 번 더 안전하게 처리
             portfolio_info = st.session_state.portfolio.get(display_name)
             current_owned = portfolio_info["수량"] if isinstance(portfolio_info, dict) else 0
             st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
@@ -215,8 +217,8 @@ with tab_trade:
             st.subheader("📊 실시간 떡락 주의 차트")
             st.line_chart(st.session_state.random_history)
             
-        time.sleep(1)
-        st.rerun()
+        # 💡 코인주 메뉴를 보고 있을 때만 1초 루프 활성화 설정
+        should_rerun = True
 
     else:
         if selected_option == "직접 검색해서 입력하기 🔍":
@@ -332,3 +334,8 @@ with tab_shop:
                         st.rerun()
                     else:
                         st.error("❌ 현금이 부족합니다!")
+
+# 💡 [핵심 브레이크] 코인주 탭이 활성화되어 있을 때만 1초 지연 후 루프 실행!
+if should_rerun:
+    time.sleep(1)
+    st.rerun()
