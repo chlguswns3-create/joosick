@@ -54,30 +54,24 @@ for stock_name, info in list(st.session_state.portfolio.items()):
     except:
         pass
 
-# [핵심 계산 파트]
-# 1. 총 평가 자산 = 내 현금 + 현재 보유한 주식들의 총 가치
+# 총 자산 및 수익률 계산
 total_assets = st.session_state.cash + total_stock_value
-# 2. 총 투자 금액, 총 평가 손익 및 수익률 계산
 total_invested = sum(info["매수총액_원화"] for info in st.session_state.portfolio.values())
 total_profit = total_stock_value - total_invested
 profit_rate = (total_profit / total_invested * 100) if total_invested > 0 else 0.0
 
-# 3. 사이드바 - 투자 지갑 디자인 적용
+# 3. 사이드바 - 투자 지갑 디자인
 st.sidebar.header("💰 내 투자 지갑")
-
-# 메인 지표: 총 평가 자산을 보기 좋게 큰 글씨(metric)로 표시
 st.sidebar.metric(label="📊 총 평가 자산 (예수금+투자금)", value=f"{total_assets:,.0f} 원")
-
-# 세부 자산 현황을 깔끔하게 나열
 st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
 st.sidebar.write(f"📈 주식 평가액: {total_stock_value:,.0f} 원")
 
-# [수익률 시각화 기능] 주식을 단 1주라도 가지고 있을 때만 손익 현황을 띄워줍니다.
+# [수정된 파트] 공백 에러를 해결하고 포맷을 안정적으로 맞추었습니다.
 if total_invested > 0:
     st.sidebar.write("---")
     st.sidebar.metric(
         label="📉 총 평가 손익 (수익률)", 
-        value=f"{total_profit:+, .0f} 원", 
+        value=f"{total_profit:+,.0f} 원", 
         delta=f"{profit_rate:+.2f}%"
     )
 
@@ -143,7 +137,6 @@ try:
                     if st.session_state.cash >= total_cost_krw:
                         st.session_state.cash -= total_cost_krw
                         
-                        # 포트폴리오 구조에 맞게 저장
                         if display_name not in st.session_state.portfolio:
                             st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
                         
@@ -158,7 +151,6 @@ try:
             with btn_sell:
                 if st.button("🔵 매도하기", use_container_width=True):
                     if display_name in st.session_state.portfolio and st.session_state.portfolio[display_name]["수량"] >= quantity:
-                        # 평단가 기준으로 매수총액 차감
                         avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
                         
                         st.session_state.cash += total_cost_krw
