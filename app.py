@@ -1,6 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import random  # 랜덤 가격 변동을 위한 도구 추가!
 
 # 1. 페이지 설정 및 제목
 st.set_page_config(layout="wide")
@@ -9,8 +10,9 @@ st.title("📈 초간단 국내/해외 주식 모의투자 시뮬레이터")
 # 가상의 환율 설정 (1달러 = 1,400원)
 EXCHANGE_RATE = 1400
 
-# 주식 선택 리스트 설정
+# 주식 선택 리스트 설정 (랜덤 주식 추가!)
 STOCK_DICT = {
+    "🔥 [대박초이스] 무빙 코인주 (랜덤) 🎰": ["RANDOM", "KR"],
     "삼성전자 🇰🇷": ["005930.KS", "KR"],
     "SK하이닉스 🇰🇷": ["000660.KS", "KR"],
     "애플 (Apple) 🇺🇸": ["AAPL", "US"],
@@ -20,17 +22,42 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 2. 유저 데이터 초기화
+# 2. 유저 데이터 및 랜덤 주식 가격 초기화
 if 'cash' not in st.session_state:
     st.session_state.cash = 10000000  # 초기 자본: 1,000만 원
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
 
+# [핵심] 랜덤 주식의 시작 가격을 10,000원으로 세션에 고정
+if 'random_stock_price' not in st.session_state:
+    st.session_state.random_stock_price = 10000.0
+if 'random_history' not in st.session_state:
+    st.session_state.random_history = [10000.0] * 10  # 차트용 가짜 데이터
+
+# 🎰 버튼을 누를 때마다 랜덤 주식 가격 변동시키기 (-20% ~ +25%)
+# 유저가 행동할 때마다 가격이 휙휙 바뀝니다.
+change_percent = random.uniform(-0.20, 0.25)
+st.session_state.random_stock_price *= (1 + change_percent)
+# 가격이 너무 떨어져서 0원 이하가 되지 않도록 방지
+if st.session_state.random_stock_price < 100:
+    st.session_state.random_stock_price = 100.0
+
+# 차트 데이터 갱신
+st.session_state.random_history.append(st.session_state.random_stock_price)
+if len(st.session_state.random_history) > 20:  # 최근 20개 데이터만 유지
+    st.session_state.random_history.pop(0)
+
+
 # --- [사이드바 자산 계산 로직 시작] ---
 total_stock_value = 0  # 보유 주식 총 평가액
 
-# 실시간 주가를 반영하여 내 포트폴리오의 가치 계산하기
 for stock_name, info in list(st.session_state.portfolio.items()):
+    if "무빙 코인주" in stock_name:
+        # 내가 보유한 랜덤 주식은 현재 세션의 변동된 가격으로 계산
+        stock_eval = st.session_state.random_stock_price * info["수량"]
+        total_stock_value += stock_eval
+        continue
+
     if stock_name in STOCK_DICT and STOCK_DICT[stock_name][0] != "CUSTOM":
         t_code = STOCK_DICT[stock_name][0]
         c_type = STOCK_DICT[stock_name][1]
@@ -46,11 +73,7 @@ for stock_name, info in list(st.session_state.portfolio.items()):
         if not s_data.empty:
             c_price = s_data['Close'].iloc[-1]
             c_price_krw = c_price * EXCHANGE_RATE if c_type == "US" else c_price
-            
-            # 이 주식의 현재 가치 = 현재가 * 수량
-            stock_eval = c_price_krw * info["수량"]
-            total_stock_value += stock_eval
-            st.session_state.portfolio[stock_name]["현재가_원화"] = c_price_krw
+            total_stock_value += (c_price_krw * info["수량"])
     except:
         pass
 
@@ -66,7 +89,6 @@ st.sidebar.metric(label="📊 총 평가 자산 (예수금+투자금)", value=f"
 st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
 st.sidebar.write(f"📈 주식 평가액: {total_stock_value:,.0f} 원")
 
-# [수정된 파트] 공백 에러를 해결하고 포맷을 안정적으로 맞추었습니다.
 if total_invested > 0:
     st.sidebar.write("---")
     st.sidebar.metric(
@@ -90,87 +112,125 @@ else:
 # 4. 메인 화면 - 선택 박스
 selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()))
 
-if selected_option == "직접 검색해서 입력하기 🔍":
-    search_ticker = st.text_input("조회하고 싶은 주식의 티커를 입력하세요 (예: MSFT, 005380.KS)", "MSFT").upper()
-    ticker = search_ticker
-    if ".KS" in ticker or ".KQ" in ticker or ticker.isdigit():
-        country = "KR"
-        if ticker.isdigit():
-            ticker = ticker + ".KS"
-        display_name = f"검색된 한국 주식 ({ticker})"
-    else:
-        country = "US"
-        display_name = f"검색된 미국 주식 ({ticker})"
-else:
-    ticker = STOCK_DICT[selected_option][0]
-    country = STOCK_DICT[selected_option][1]
-    display_name = selected_option
-
-try:
-    stock = yf.Ticker(ticker)
-    df = stock.history(period="1mo")
+# 랜덤 주식을 선택했을 때와 아닐 때를 나누어 처리합니다.
+if "무빙 코인주" in selected_option:
+    display_name = "🔥 [대박초이스] 무빙 코인주 (랜덤) 🎰"
+    current_price_krw = st.session_state.random_stock_price
+    price_display = f"{current_price_krw:,.0f} 원"
     
-    if not df.empty:
-        raw_price = df['Close'].iloc[-1]
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.markdown(f"### {display_name}")
+        st.metric(label="현재 주가 (실시간 변동)", value=price_display)
         
-        if country == "US":
-            price_display = f"${raw_price:,.2f} (약 {raw_price * EXCHANGE_RATE:,.0f} 원)"
-            current_price_krw = raw_price * EXCHANGE_RATE
-        else:
-            price_display = f"{raw_price:,.0f} 원"
-            current_price_krw = raw_price
-            
-        col1, col2 = st.columns([1, 2])
+        quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1)
+        total_cost_krw = current_price_krw * quantity
+        st.write(f"총 거래 금액: **{total_cost_krw:,.0f} 원**")
         
-        with col1:
-            st.markdown(f"### {display_name}")
-            st.metric(label="현재 주가", value=price_display)
-            
-            quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1)
-            total_cost_krw = current_price_krw * quantity
-            st.write(f"총 거래 금액: **{total_cost_krw:,.0f} 원**")
-            
-            btn_buy, btn_sell = st.columns(2)
-            
-            with btn_buy:
-                if st.button("🔴 매수하기", use_container_width=True):
-                    if st.session_state.cash >= total_cost_krw:
-                        st.session_state.cash -= total_cost_krw
-                        
-                        if display_name not in st.session_state.portfolio:
-                            st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
-                        
-                        st.session_state.portfolio[display_name]["수량"] += quantity
-                        st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
-                        
-                        st.success(f"{display_name} {quantity}주 매수 완료!")
-                        st.rerun()
-                    else:
-                        st.error("잔액이 부족합니다!")
-                        
-            with btn_sell:
-                if st.button("🔵 매도하기", use_container_width=True):
-                    if display_name in st.session_state.portfolio and st.session_state.portfolio[display_name]["수량"] >= quantity:
-                        avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
-                        
-                        st.session_state.cash += total_cost_krw
-                        st.session_state.portfolio[display_name]["수량"] -= quantity
-                        st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
-                        
-                        if st.session_state.portfolio[display_name]["수량"] == 0:
-                            del st.session_state.portfolio[display_name]
-                            
-                        st.success(f"{display_name} {quantity}주 매도 완료!")
-                        st.rerun()
-                    else:
-                        st.error("보유 수량이 부족합니다!")
+        btn_buy, btn_sell = st.columns(2)
+        with btn_buy:
+            if st.button("🔴 매수하기", use_container_width=True):
+                if st.session_state.cash >= total_cost_krw:
+                    st.session_state.cash -= total_cost_krw
+                    if display_name not in st.session_state.portfolio:
+                        st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
+                    st.session_state.portfolio[display_name]["수량"] += quantity
+                    st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
+                    st.success(f"{display_name} {quantity}주 매수 완료!")
+                    st.rerun()
+                else:
+                    st.error("잔액이 부족합니다!")
+                    
+        with btn_sell:
+            if st.button("🔵 매도하기", use_container_width=True):
+                if display_name in st.session_state.portfolio and st.session_state.portfolio[display_name]["수량"] >= quantity:
+                    avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
+                    st.session_state.cash += total_cost_krw
+                    st.session_state.portfolio[display_name]["수량"] -= quantity
+                    st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
+                    if st.session_state.portfolio[display_name]["수량"] == 0:
+                        del st.session_state.portfolio[display_name]
+                    st.success(f"{display_name} {quantity}주 매도 완료!")
+                    st.rerun()
+                else:
+                    st.error("보유 수량이 부족합니다!")
+                    
+    with col2:
+        st.subheader("📊 실시간 도파민 그래프")
+        st.line_chart(st.session_state.random_history)
 
-        with col2:
-            st.subheader("📊 최근 1개월 주가 흐름")
-            st.line_chart(df['Close'])
-            
+else:
+    # 기존 실제 주식 및 검색 로직
+    if selected_option == "직접 검색해서 입력하기 🔍":
+        search_ticker = st.text_input("조회하고 싶은 주식의 티커를 입력하세요 (예: MSFT, 005380.KS)", "MSFT").upper()
+        ticker = search_ticker
+        if ".KS" in ticker or ".KQ" in ticker or ticker.isdigit():
+            country = "KR"
+            if ticker.isdigit():
+                ticker = ticker + ".KS"
+            display_name = f"검색된 한국 주식 ({ticker})"
+        else:
+            country = "US"
+            display_name = f"검색된 미국 주식 ({ticker})"
     else:
-        st.warning("존재하지 않는 티커이거나 데이터를 불러올 수 없습니다.")
+        ticker = STOCK_DICT[selected_option][0]
+        country = STOCK_DICT[selected_option][1]
+        display_name = selected_option
+
+    try:
+        stock = yf.Ticker(ticker)
+        df = stock.history(period="1mo")
         
-except Exception as e:
-    st.error(f"오류가 발생했습니다: {e}")
+        if not df.empty:
+            raw_price = df['Close'].iloc[-1]
+            if country == "US":
+                price_display = f"${raw_price:,.2f} (약 {raw_price * EXCHANGE_RATE:,.0f} 원)"
+                current_price_krw = raw_price * EXCHANGE_RATE
+            else:
+                price_display = f"{raw_price:,.0f} 원"
+                current_price_krw = raw_price
+                
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.markdown(f"### {display_name}")
+                st.metric(label="현재 주가", value=price_display)
+                
+                quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1)
+                total_cost_krw = current_price_krw * quantity
+                st.write(f"총 거래 금액: **{total_cost_krw:,.0f} 원**")
+                
+                btn_buy, btn_sell = st.columns(2)
+                with btn_buy:
+                    if st.button("🔴 매수하기", use_container_width=True):
+                        if st.session_state.cash >= total_cost_krw:
+                            st.session_state.cash -= total_cost_krw
+                            if display_name not in st.session_state.portfolio:
+                                st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
+                            st.session_state.portfolio[display_name]["수량"] += quantity
+                            st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
+                            st.success(f"{display_name} {quantity}주 매수 완료!")
+                            st.rerun()
+                        else:
+                            st.error("잔액이 부족합니다!")
+                            
+                with btn_sell:
+                    if st.button("🔵 매도하기", use_container_width=True):
+                        if display_name in st.session_state.portfolio and st.session_state.portfolio[display_name]["수량"] >= quantity:
+                            avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
+                            st.session_state.cash += total_cost_krw
+                            st.session_state.portfolio[display_name]["수량"] -= quantity
+                            st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
+                            if st.session_state.portfolio[display_name]["수량"] == 0:
+                                del st.session_state.portfolio[display_name]
+                            st.success(f"{display_name} {quantity}주 매도 완료!")
+                            st.rerun()
+                        else:
+                            st.error("보유 수량이 부족합니다!")
+
+            with col2:
+                st.subheader("📊 최근 1개월 주가 흐름")
+                st.line_chart(df['Close'])
+        else:
+            st.warning("존재하지 않는 티커이거나 데이터를 불러올 수 없습니다.")
+    except Exception as e:
+        st.error(f"오류가 발생했습니다: {e}")
