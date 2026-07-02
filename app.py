@@ -3,16 +3,11 @@ import yfinance as yf
 import pandas as pd
 import random
 import time
-import json
 from datetime import datetime
-from streamlit_local_storage import LocalStorage
 
 # 1. 페이지 설정 및 제목
 st.set_page_config(layout="wide")
-st.title("📈 초간단 국내/해외 주식 모의투자 시뮬레이터 (with 상점 🏪)")
-
-# 로컬 스토리지 부품 로드
-local_storage = LocalStorage()
+st.title("📈 국내/해외 주식 모의투자 시뮬레이터")
 
 # 가상의 환율 설정 (1달러 = 1,400원)
 EXCHANGE_RATE = 1400
@@ -29,7 +24,7 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 🛒 상점 아이템 리스트 설정
+# 🛒 [새로운 상점 아이템 리스트 설정]
 SHOP_ITEMS = {
     "🐶 별이 만나기": 500,
     "☕ 아메리카노 기프티콘": 100000,
@@ -41,46 +36,15 @@ SHOP_ITEMS = {
     "😂 인스타 릴스 따라하기": 100000000
 }    
 
-# --- 💾 브라우저 창고에서 기존 데이터 불러오기 로직 ---
-saved_cash = local_storage.getItem("game_cash")
-saved_portfolio = local_storage.getItem("game_portfolio")
-saved_history = local_storage.getItem("game_history")
-saved_inventory = local_storage.getItem("game_inventory")
-
-# 2. 유저 데이터 세션 및 초기값 설정
+# 2. 유저 데이터 및 세션 초기화
 if 'cash' not in st.session_state:
-    st.session_state.cash = int(saved_cash) if saved_cash is not None else 10000
-
+    st.session_state.cash = 10000  # 초기 자본: 10,000원
 if 'portfolio' not in st.session_state:
-    try:
-        st.session_state.portfolio = json.loads(saved_portfolio) if saved_portfolio else {}
-    except:
-        st.session_state.portfolio = {}
-
+    st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
 if 'trade_history' not in st.session_state:
-    try:
-        st.session_state.trade_history = json.loads(saved_history) if saved_history else []
-    except:
-        st.session_state.trade_history = []
-
+    st.session_state.trade_history = []  # 거래 내역 리스트
 if 'inventory' not in st.session_state:
-    try:
-        st.session_state.inventory = json.loads(saved_inventory) if saved_inventory else {}
-    except:
-        st.session_state.inventory = {}
-
-# 데이터 저장 함수
-def save_game_data():
-    local_storage.setItem("game_cash", str(st.session_state.cash), key="save_cash_btn")
-    local_storage.setItem("game_portfolio", json.dumps(st.session_state.portfolio, ensure_ascii=False), key="save_port_btn")
-    local_storage.setItem("game_history", json.dumps(st.session_state.trade_history, ensure_ascii=False), key="save_hist_btn")
-    local_storage.setItem("game_inventory", json.dumps(st.session_state.inventory, ensure_ascii=False), key="save_inv_btn")
-
-# 리셋 방지용 입력 수량 세션 고정
-if 'rand_qty_val' not in st.session_state:
-    st.session_state.rand_qty_val = 1
-if 'normal_qty_val' not in st.session_state:
-    st.session_state.normal_qty_val = 1
+    st.session_state.inventory = {}  # 🎒 {아이템이름: 보유개수}
 
 # 랜덤 주식 가격 변동 로직
 if 'random_stock_price' not in st.session_state:
@@ -179,24 +143,23 @@ else:
     st.sidebar.write("보유 중인 주식이 없습니다.")
 
 st.sidebar.write("---")
-st.sidebar.subheader("⚙️ 게임 초기화")
-if st.sidebar.button("♻️ 자산 처음부터 리셋하기"):
-    # 💡 [버그 해결] 키 충돌을 피하기 위해 딱 하나의 텍스트만 덮어쓰고 나머지는 생략하여 세션을 비웁니다.
-    local_storage.setItem("game_cash", "10000", key="reset_trigger_key")
-    st.session_state.clear()
-    st.rerun()
+st.sidebar.subheader("📜 실시간 거래 히스토리")
+if st.session_state.trade_history:
+    for log in reversed(st.session_state.trade_history):
+        st.sidebar.caption(log)
+else:
+    st.sidebar.write("아직 거래 내역이 없습니다.")
+
 
 # 4. 메인 화면 탭 구성
-menu = st.radio("이동할 메뉴를 선택하세요", ["📊 주식 모의투자 거래소", "🏪 플렉스 아이템 상점"], horizontal=True, label_visibility="collapsed")
+tab_trade, tab_shop = st.tabs(["📊 주식 모의투자 거래소", "🏪 플렉스 아이템 상점"])
 
 # 실시간 무한 새로고침 플래그
 should_rerun = False
 
-# ==================== [메뉴 1: 주식 거래소] ====================
-if menu == "📊 주식 모의투자 거래소":
+# ==================== [탭 1: 주식 거래소] ====================
+with tab_trade:
     selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
-
-    trade_msg_slot = st.empty()
 
     if "코인주" in selected_option:
         display_name = "💀 코인주 🎰"
@@ -211,9 +174,7 @@ if menu == "📊 주식 모의투자 거래소":
             current_owned = portfolio_info["수량"] if isinstance(portfolio_info, dict) else 0
             st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
             
-            quantity = st.number_input("거래 수량 선택", min_value=1, value=st.session_state.rand_qty_val, step=1, key="rand_qty")
-            st.session_state.rand_qty_val = quantity
-            
+            quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1, key="rand_qty")
             total_cost_krw = current_price_krw * quantity
             st.write(f"총 거래 금액: **{total_cost_krw:,.0f} 원**")
             
@@ -229,13 +190,10 @@ if menu == "📊 주식 모의투자 거래소":
                         
                         now_str = datetime.now().strftime("%H:%M:%S")
                         st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: 💀 코인주 🎰 {quantity}주")
-                        save_game_data()
                         st.success(f"{display_name} {quantity}주 매수 완료!")
                         st.rerun()
                     else:
-                        trade_msg_slot.error("❌ 잔액이 부족합니다!")
-                        time.sleep(3)
-                        trade_msg_slot.empty()
+                        st.error("잔액이 부족합니다!")
                         
             with btn_sell:
                 if st.button("🔵 매도하기", use_container_width=True, key="rand_sell"):
@@ -250,13 +208,10 @@ if menu == "📊 주식 모의투자 거래소":
                         
                         if st.session_state.portfolio[display_name]["수량"] == 0:
                             del st.session_state.portfolio[display_name]
-                        save_game_data()
                         st.success(f"{display_name} {quantity}주 매도 완료!")
                         st.rerun()
                     else:
-                        trade_msg_slot.error("❌ 보유 수량이 부족합니다!")
-                        time.sleep(3)
-                        trade_msg_slot.empty()
+                        st.error("보유 수량이 부족합니다!")
                         
         with col2:
             st.subheader("📊 실시간 떡락 주의 차트")
@@ -306,9 +261,7 @@ if menu == "📊 주식 모의투자 거래소":
                     current_owned = portfolio_info["수량"] if isinstance(portfolio_info, dict) else 0
                     st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
                     
-                    quantity = st.number_input("거래 수량 선택", min_value=1, value=st.session_state.normal_qty_val, step=1, key="normal_qty")
-                    st.session_state.normal_qty_val = quantity
-                    
+                    quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1, key="normal_qty")
                     total_cost_krw = current_price_krw * quantity
                     st.write(f"총 거래 금액: **{total_cost_krw:,.0f} 원**")
                     
@@ -324,13 +277,10 @@ if menu == "📊 주식 모의투자 거래소":
                                 
                                 now_str = datetime.now().strftime("%H:%M:%S")
                                 st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: {display_name} {quantity}주")
-                                save_game_data()
                                 st.success(f"{display_name} {quantity}주 매수 완료!")
                                 st.rerun()
                             else:
-                                trade_msg_slot.error("❌ 잔액이 부족합니다!")
-                                time.sleep(3)
-                                trade_msg_slot.empty()
+                                st.error("잔액이 부족합니다!")
                                 
                     with btn_sell:
                         if st.button("🔵 매도하기", use_container_width=True, key="normal_sell"):
@@ -345,30 +295,27 @@ if menu == "📊 주식 모의투자 거래소":
                                 
                                 if st.session_state.portfolio[display_name]["수량"] == 0:
                                     del st.session_state.portfolio[display_name]
-                                save_game_data()
                                 st.success(f"{display_name} {quantity}주 매도 완료!")
                                 st.rerun()
                             else:
-                                trade_msg_slot.error("❌ 보유 수량이 부족합니다!")
-                                time.sleep(3)
-                                trade_msg_slot.empty()
+                                st.error("보유 수량이 부족합니다!")
 
                 with col2:
                     st.subheader("📊 최근 1개월 주가 흐름")
                     st.line_chart(df['Close'])
+            else:
+                st.warning("존재하지 않는 티커이거나 데이터를 불러올 수 없습니다.")
         except Exception as e:
             st.error(f"오류가 발생했습니다: {e}")
 
-# ==================== [메뉴 2: 아이템 상점] ====================
-elif menu == "🏪 플렉스 아이템 상점":
+# ==================== [탭 2: 아이템 상점] ====================
+with tab_shop:
     st.header("🏪 모의투자 소원 성취 상점")
     st.write("열심히 모은 현금으로 원하는 상품 및 권리를 획득해 보세요!")
-    
-    shop_msg_slot = st.empty()
     st.markdown(f"### 💵 내 보유 현금: `{st.session_state.cash:,.0f} 원`")
     st.write("---")
     
-    cols = st.columns(2)
+    cols = st.columns(2)  # 아이템이 4개이므로 깔끔하게 2열씩 정렬
     for index, (item_name, price) in enumerate(SHOP_ITEMS.items()):
         with cols[index % 2]:
             with st.container(border=True):
@@ -382,15 +329,10 @@ elif menu == "🏪 플렉스 아이템 상점":
                         
                         now_str = datetime.now().strftime("%H:%M:%S")
                         st.session_state.trade_history.append(f"[{now_str}] 🏪 상점: {item_name} 구입")
-                        
-                        save_game_data()
-                        shop_msg_slot.success(f"🎉 {item_name} 구매 성공!")
-                        time.sleep(1)
+                        st.success(f"🎉 {item_name} 구매 성공!")
                         st.rerun()
                     else:
-                        shop_msg_slot.error("❌ 현금이 부족합니다!")
-                        time.sleep(3)
-                        shop_msg_slot.empty()
+                        st.error("❌ 현금이 부족합니다!")
 
 if should_rerun:
     time.sleep(1)
