@@ -20,7 +20,7 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 2. 유저 데이터 초기화 (구조 업그레이드!)
+# 2. 유저 데이터 초기화
 if 'cash' not in st.session_state:
     st.session_state.cash = 10000000  # 초기 자본: 1,000만 원
 if 'portfolio' not in st.session_state:
@@ -31,12 +31,10 @@ total_stock_value = 0  # 보유 주식 총 평가액
 
 # 실시간 주가를 반영하여 내 포트폴리오의 가치 계산하기
 for stock_name, info in list(st.session_state.portfolio.items()):
-    # 목록 주식인지 검색 주식인지에 따라 티커 찾기
     if stock_name in STOCK_DICT and STOCK_DICT[stock_name][0] != "CUSTOM":
         t_code = STOCK_DICT[stock_name][0]
         c_type = STOCK_DICT[stock_name][1]
     else:
-        # 검색된 주식의 경우 이름에서 티커 추출 (예: "검색된 미국 주식 (AAPL)" -> "AAPL")
         try:
             t_code = stock_name.split("(")[1].replace(")", "")
             c_type = "KR" if (".KS" in t_code or ".KQ" in t_code) else "US"
@@ -56,21 +54,32 @@ for stock_name, info in list(st.session_state.portfolio.items()):
     except:
         pass
 
-# 총 자산 = 현금 + 주식 가치
+# [핵심 계산 파트]
+# 1. 총 평가 자산 = 내 현금 + 현재 보유한 주식들의 총 가치
 total_assets = st.session_state.cash + total_stock_value
+# 2. 총 투자 금액, 총 평가 손익 및 수익률 계산
 total_invested = sum(info["매수총액_원화"] for info in st.session_state.portfolio.values())
 total_profit = total_stock_value - total_invested
 profit_rate = (total_profit / total_invested * 100) if total_invested > 0 else 0.0
 
-# 3. 사이드바 - [디자인 업그레이드]
+# 3. 사이드바 - 투자 지갑 디자인 적용
 st.sidebar.header("💰 내 투자 지갑")
-st.sidebar.metric(label="총 평가 자산", value=f"{total_assets:,.0f} 원")
-st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
-st.sidebar.write(f"📊 주식 평가액: {total_stock_value:,.0f} 원")
 
-# 수익률 표시 (플러스면 빨강, 마이너스면 파랑)
+# 메인 지표: 총 평가 자산을 보기 좋게 큰 글씨(metric)로 표시
+st.sidebar.metric(label="📊 총 평가 자산 (예수금+투자금)", value=f"{total_assets:,.0f} 원")
+
+# 세부 자산 현황을 깔끔하게 나열
+st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
+st.sidebar.write(f"📈 주식 평가액: {total_stock_value:,.0f} 원")
+
+# [수익률 시각화 기능] 주식을 단 1주라도 가지고 있을 때만 손익 현황을 띄워줍니다.
 if total_invested > 0:
-    st.sidebar.metric(label="총 평가 손익", value=f"{total_profit:+, .0f} 원", delta=f"{profit_rate:+.2f}%")
+    st.sidebar.write("---")
+    st.sidebar.metric(
+        label="📉 총 평가 손익 (수익률)", 
+        value=f"{total_profit:+, .0f} 원", 
+        delta=f"{profit_rate:+.2f}%"
+    )
 
 st.sidebar.write("---")
 st.sidebar.subheader("💼 내 포트폴리오")
