@@ -57,8 +57,8 @@ if 'random_history' not in st.session_state:
 change_percent = random.uniform(-0.90, 0.90)
 st.session_state.random_stock_price *= (1 + change_percent)
 
-if st.session_state.random_stock_price < 10:
-    st.session_state.random_stock_price = 10.0
+if st.session_state.random_stock_price < 7:
+    st.session_state.random_stock_price = 7.0
 
 st.session_state.random_history.append(st.session_state.random_stock_price)
 if len(st.session_state.random_history) > 20:
