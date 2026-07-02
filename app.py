@@ -7,7 +7,7 @@ from datetime import datetime
 
 # 1. 페이지 설정 및 제목
 st.set_page_config(layout="wide")
-st.title("📈 국내/해외 주식 모의투자 시뮬레이터")
+st.title("📈 국내/해외 주식 모의투자 시뮬레이터 (단타 저격 수수료 버전 ⚠️)")
 
 # 가상의 환율 설정 (1달러 = 1,400원)
 EXCHANGE_RATE = 1400
@@ -49,22 +49,24 @@ if 'inventory' not in st.session_state:
 
 # 랜덤 주식 가격 변동 로직
 if 'random_stock_price' not in st.session_state:
-    st.session_state.random_stock_price = 10000.0
+    st.session_state.random_stock_price = 1000.0
 if 'random_history' not in st.session_state:
-    st.session_state.random_history = [10000.0] * 10
+    st.session_state.random_history = [1000.0] * 10
 
 
 # =====================================================================
-# 💸 코인주 금액 더하기/빼기 가감 방식
+# 💸 코인주 금액 가감 로직 (상장폐지 제외, 하한선 1원)
 # =====================================================================
 price_change = random.randint(-300, 400) 
 st.session_state.random_stock_price += price_change
 
-if st.session_state.random_stock_price < 7:
-    st.session_state.random_stock_price = 7.0
+# 하한선 설정
+if st.session_state.random_stock_price < 1:
+    st.session_state.random_stock_price = 1.0
 
-if st.session_state.random_stock_price > 2000:
-    st.session_state.random_stock_price = 2000.0
+# 상한선 설정
+if st.session_state.random_stock_price > 3000:
+    st.session_state.random_stock_price = 3000.0
 
 st.session_state.random_history.append(st.session_state.random_stock_price)
 if len(st.session_state.random_history) > 20:
@@ -140,7 +142,6 @@ else:
     st.sidebar.write("아직 획득한 아이템이 없습니다.")
 
 st.sidebar.write("---")
-# ✨ [수정 부분] 포트폴리오 섹션에 보유 현금을 명확하게 시각화
 st.sidebar.subheader("💼 내 포트폴리오 자산")
 st.sidebar.write(f"💵 **보유 현금 (원화)**: {st.session_state.cash:,.0f} 원")
 
@@ -186,8 +187,21 @@ with tab_trade:
             st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
             
             quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1, key="rand_qty")
-            total_cost_krw = current_price_krw * quantity
-            st.write(f"총 거래 금액: **{total_cost_krw:,.0f} 원**")
+            
+            # 🚨 [꼼수 저격 핵심 변동폭 비례 수수료] 
+            # 최대 변동폭인 400원에 비례하여 1주당 무조건 250원의 세금(수수료)을 부과합니다.
+            # 주가가 1원이든 10원이든 상관없이 무조건 주당 250원씩 수수료를 떼어갑니다.
+            per_share_fee = 250 
+            
+            pure_cost = current_price_krw * quantity
+            total_fee = per_share_fee * quantity
+            
+            total_cost_krw = pure_cost + total_fee  # 살 때는 수수료 추가 결제
+            sell_receive = pure_cost - total_fee   # 팔 때는 수수료 차감 후 지급
+            
+            st.write(f"순수 주식 금액: {pure_cost:,.0f} 원")
+            st.caption(f"⚠️ 코인주 특별 거래세 (주당 {per_share_fee}원 적용): {total_fee:,.0f} 원")
+            st.write(f"최종 결제 금액: **{total_cost_krw:,.0f} 원**")
             
             btn_buy, btn_sell = st.columns(2)
             with btn_buy:
@@ -200,27 +214,30 @@ with tab_trade:
                         st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
                         
                         now_str = datetime.now().strftime("%H:%M:%S")
-                        st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: 💀 코인주 🎰 {quantity}주")
+                        st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: 💀 코인주 🎰 {quantity}주 (수수료 포함)")
                         st.success(f"{display_name} {quantity}주 매수 완료!")
                         st.rerun()
                     else:
-                        st.error("잔액이 부족합니다!")
+                        st.error("잔액이 부족합니다! (수수료가 감안되었습니다)")
                         
             with btn_sell:
                 if st.button("🔵 매도하기", use_container_width=True, key="rand_sell"):
                     if display_name in st.session_state.portfolio and isinstance(st.session_state.portfolio[display_name], dict) and st.session_state.portfolio[display_name]["수량"] >= quantity:
-                        avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
-                        st.session_state.cash += total_cost_krw
-                        st.session_state.portfolio[display_name]["수량"] -= quantity
-                        st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
-                        
-                        now_str = datetime.now().strftime("%H:%M:%S")
-                        st.session_state.trade_history.append(f"[{now_str}] 🔵 매도: 💀 코인주 🎰 {quantity}주")
-                        
-                        if st.session_state.portfolio[display_name]["수량"] == 0:
-                            del st.session_state.portfolio[display_name]
-                        st.success(f"{display_name} {quantity}주 매도 완료!")
-                        st.rerun()
+                        if sell_receive < 0:
+                            st.error("수수료가 판매 금액보다 큽니다! 지금 팔면 오히려 빚이 생겨 매도가 불가능합니다.")
+                        else:
+                            avg_p = st.session_state.portfolio[display_name]["매수총액_원화"] / st.session_state.portfolio[display_name]["수량"]
+                            st.session_state.cash += sell_receive
+                            st.session_state.portfolio[display_name]["수량"] -= quantity
+                            st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
+                            
+                            now_str = datetime.now().strftime("%H:%M:%S")
+                            st.session_state.trade_history.append(f"[{now_str}] 🔵 매도: 💀 코인주 🎰 {quantity}주 (수수료 제함)")
+                            
+                            if st.session_state.portfolio[display_name]["수량"] == 0:
+                                del st.session_state.portfolio[display_name]
+                            st.success(f"{display_name} {quantity}주 매도 완료!")
+                            st.rerun()
                     else:
                         st.error("보유 수량이 부족합니다!")
                         
@@ -231,6 +248,7 @@ with tab_trade:
         should_rerun = True
 
     else:
+        # (한국/미국 주식 로직 동일 유지)
         if selected_option == "직접 검색해서 입력하기 🔍":
             search_ticker = st.text_input("조회하고 싶은 주식의 티커를 입력하세요 (예: MSFT, 005380.KS)", "MSFT", key="custom_ticker_input").upper()
             ticker = search_ticker
