@@ -65,10 +65,6 @@ st.session_state.random_stock_price += price_change
 if st.session_state.random_stock_price < 1:
     st.session_state.random_stock_price = 1.0
 
-# 상한선 설정
-if st.session_state.random_stock_price > 3000:
-    st.session_state.random_stock_price = 3000.0
-
 st.session_state.random_history.append(st.session_state.random_stock_price)
 if len(st.session_state.random_history) > 20:
     st.session_state.random_history.pop(0)
