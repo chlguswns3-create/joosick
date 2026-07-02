@@ -35,11 +35,9 @@ if 'random_stock_price' not in st.session_state:
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
-# 🔄 [변동 범위 수정] 하루아침에 한강 가거나 한남동 가거나! (-40% ~ +60% 폭등락)
 change_percent = random.uniform(-0.40, 0.60)
 st.session_state.random_stock_price *= (1 + change_percent)
 
-# 휴지조각(0원)이 되어 멈추는 걸 방지하기 위해 최소 가격은 10원 설정
 if st.session_state.random_stock_price < 10:
     st.session_state.random_stock_price = 10.0
 
@@ -75,10 +73,19 @@ for stock_name, info in list(st.session_state.portfolio.items()):
     except:
         pass
 
-total_assets = st.session_state.cash + total_stock_value
+# 🛡️ [수정 포인트] 자산 및 수익률 안전 계산식 적용
 total_invested = sum(info["매수총액_원화"] for info in st.session_state.portfolio.values())
-total_profit = total_stock_value - total_invested
-profit_rate = (total_profit / total_invested * 100) if total_invested > 0 else 0.0
+
+if total_invested > 0:
+    total_assets = st.session_state.cash + total_stock_value
+    total_profit = total_stock_value - total_invested
+    profit_rate = (total_profit / total_invested) * 100
+else:
+    # 보유 주식이 없으면 강제로 모든 투자 가치와 손익을 0으로 락(Lock)을 겁니다.
+    total_stock_value = 0
+    total_assets = st.session_state.cash
+    total_profit = 0
+    profit_rate = 0.0
 
 # 3. 사이드바 화면
 st.sidebar.header("💰 내 투자 지갑")
@@ -86,6 +93,7 @@ st.sidebar.metric(label="📊 총 평가 자산 (예수금+투자금)", value=f"
 st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
 st.sidebar.write(f"📈 주식 평가액: {total_stock_value:,.0f} 원")
 
+# 🛡️ 보유 주식이 있을 때만 수익률 전광판을 보여주고, 없으면 깨끗하게 숨깁니다.
 if total_invested > 0:
     st.sidebar.write("---")
     st.sidebar.metric(
