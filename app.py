@@ -24,7 +24,7 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 🛒 상점 아이템 리스트 설정
+# 🛒 [새로운 상점 아이템 리스트 설정]
 SHOP_ITEMS = {
     "☕ 아메리카노 기프티콘": 100000,
     "☕ 카페 사기": 400000,
@@ -157,9 +157,6 @@ should_rerun = False
 with tab_trade:
     selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
 
-    # 💡 주식 매매용 알림 메시지 임시 공간 생성
-    trade_msg_slot = st.empty()
-
     if "코인주" in selected_option:
         display_name = "💀 코인주 🎰"
         current_price_krw = st.session_state.random_stock_price
@@ -192,10 +189,7 @@ with tab_trade:
                         st.success(f"{display_name} {quantity}주 매수 완료!")
                         st.rerun()
                     else:
-                        # 💡 3초 뒤에 서서히 사라지는 경고 메시지 구현
-                        trade_msg_slot.error("❌ 잔액이 부족합니다!")
-                        time.sleep(3)
-                        trade_msg_slot.empty()
+                        st.error("잔액이 부족합니다!")
                         
             with btn_sell:
                 if st.button("🔵 매도하기", use_container_width=True, key="rand_sell"):
@@ -213,9 +207,7 @@ with tab_trade:
                         st.success(f"{display_name} {quantity}주 매도 완료!")
                         st.rerun()
                     else:
-                        trade_msg_slot.error("❌ 보유 수량이 부족합니다!")
-                        time.sleep(3)
-                        trade_msg_slot.empty()
+                        st.error("보유 수량이 부족합니다!")
                         
         with col2:
             st.subheader("📊 실시간 떡락 주의 차트")
@@ -284,9 +276,7 @@ with tab_trade:
                                 st.success(f"{display_name} {quantity}주 매수 완료!")
                                 st.rerun()
                             else:
-                                trade_msg_slot.error("❌ 잔액이 부족합니다!")
-                                time.sleep(3)
-                                trade_msg_slot.empty()
+                                st.error("잔액이 부족합니다!")
                                 
                     with btn_sell:
                         if st.button("🔵 매도하기", use_container_width=True, key="normal_sell"):
@@ -304,9 +294,7 @@ with tab_trade:
                                 st.success(f"{display_name} {quantity}주 매도 완료!")
                                 st.rerun()
                             else:
-                                trade_msg_slot.error("❌ 보유 수량이 부족합니다!")
-                                time.sleep(3)
-                                trade_msg_slot.empty()
+                                st.error("보유 수량이 부족합니다!")
 
                 with col2:
                     st.subheader("📊 최근 1개월 주가 흐름")
@@ -320,14 +308,10 @@ with tab_trade:
 with tab_shop:
     st.header("🏪 모의투자 소원 성취 상점")
     st.write("열심히 모은 현금으로 원하는 상품 및 권리를 획득해 보세요!")
-    
-    # 💡 상점용 알림 메시지 임시 공간 생성
-    shop_msg_slot = st.empty()
-    
     st.markdown(f"### 💵 내 보유 현금: `{st.session_state.cash:,.0f} 원`")
     st.write("---")
     
-    cols = st.columns(2)
+    cols = st.columns(2)  # 아이템이 4개이므로 깔끔하게 2열씩 정렬
     for index, (item_name, price) in enumerate(SHOP_ITEMS.items()):
         with cols[index % 2]:
             with st.container(border=True):
@@ -341,16 +325,10 @@ with tab_shop:
                         
                         now_str = datetime.now().strftime("%H:%M:%S")
                         st.session_state.trade_history.append(f"[{now_str}] 🏪 상점: {item_name} 구입")
-                        
-                        # 성공 메시지도 깔끔하게 상단 슬롯에 노출 후 새로고침
-                        shop_msg_slot.success(f"🎉 {item_name} 구매 성공!")
-                        time.sleep(1)
+                        st.success(f"🎉 {item_name} 구매 성공!")
                         st.rerun()
                     else:
-                        # 💡 [핵심 구현] 현금 부족 에러 발생 시 상단 슬롯에 경고를 띄우고 3초 뒤 지우기!
-                        shop_msg_slot.error("❌ 현금이 부족합니다!")
-                        time.sleep(3)
-                        shop_msg_slot.empty()
+                        st.error("❌ 현금이 부족합니다!")
 
 if should_rerun:
     time.sleep(1)
