@@ -53,16 +53,29 @@ if 'random_stock_price' not in st.session_state:
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
-# 변동성 범위: -45% ~ +45%
-change_percent = random.uniform(-0.90, 0.90)
-st.session_state.random_stock_price *= (1 + change_percent)
 
+# =====================================================================
+# 💸 [수정 완료] 퍼센트(%) 곱하기 대신 금액 더하기/빼기 가감 방식 적용!
+# =====================================================================
+# 1초마다 최소 -300원 폭락 ~ 최대 +400원 폭등 사이의 "원화 금액"을 무작위로 결정
+price_change = random.randint(-500, 400) 
+
+# 현재 가격에 이 변동 금액을 그대로 더하거나 뺍니다.
+st.session_state.random_stock_price += price_change
+
+# 하한선 방어: 7원 이하로 떨어지면 7원으로 강제 방어 (상장폐지 방지)
 if st.session_state.random_stock_price < 7:
     st.session_state.random_stock_price = 7.0
 
+# 상한선 방어: 너무 무한대로 폭등해서 게임이 깨지는 걸 막기 위해 최고가 제한 (예: 2,000원)
+if st.session_state.random_stock_price > 2000:
+    st.session_state.random_stock_price = 2000.0
+
+# 차트용 데이터 누적 및 최신 20개 유지
 st.session_state.random_history.append(st.session_state.random_stock_price)
 if len(st.session_state.random_history) > 20:
     st.session_state.random_history.pop(0)
+# =====================================================================
 
 
 # --- [사이드바 자산 계산 로직] ---
@@ -316,7 +329,7 @@ with tab_shop:
     st.markdown(f"### 💵 내 보유 현금: `{st.session_state.cash:,.0f} 원`")
     st.write("---")
     
-    cols = st.columns(2)  # 아이템이 4개이므로 깔끔하게 2열씩 정렬
+    cols = st.columns(2)  # 아이템을 깔끔하게 2열씩 정렬
     for index, (item_name, price) in enumerate(SHOP_ITEMS.items()):
         with cols[index % 2]:
             with st.container(border=True):
