@@ -24,7 +24,7 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 🛒 상점 아이템 도감 설정
+# 🛒 상점 아이템 리스트 설정
 SHOP_ITEMS = {
     "☕ 아메리카노 기프티콘": 100000,
     "☕ 카페 사기": 400000,
@@ -34,7 +34,7 @@ SHOP_ITEMS = {
 
 # 2. 유저 데이터 및 세션 초기화
 if 'cash' not in st.session_state:
-    st.session_state.cash = 10000  # 초기 자본: 1,000만 원
+    st.session_state.cash = 10000  # 초기 자본: 10,000원
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
 if 'trade_history' not in st.session_state:
@@ -48,6 +48,7 @@ if 'random_stock_price' not in st.session_state:
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
+# 변동성 범위: -45% ~ +45%
 change_percent = random.uniform(-0.45, 0.45)
 st.session_state.random_stock_price *= (1 + change_percent)
 
@@ -147,16 +148,17 @@ else:
 
 
 # 4. 메인 화면 탭 구성
-# 💡 탭 상태가 새로고침에 풀리지 않도록 st.tabs 대신 selectbox나 독립 변수로 제어할 수도 있지만,
-# 아래처럼 코인주 활성화 여부를 체크하여 새로고침을 조건부로 걸면 해결됩니다.
 tab_trade, tab_shop = st.tabs(["📊 주식 모의투자 거래소", "🏪 플렉스 아이템 상점"])
 
-# 실시간 무한 새로고침을 켤지 말지 결정하는 플래그 변수
+# 실시간 무한 새로고침 플래그
 should_rerun = False
 
 # ==================== [탭 1: 주식 거래소] ====================
 with tab_trade:
     selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
+
+    # 💡 주식 매매용 알림 메시지 임시 공간 생성
+    trade_msg_slot = st.empty()
 
     if "코인주" in selected_option:
         display_name = "💀 코인주 🎰"
@@ -190,7 +192,10 @@ with tab_trade:
                         st.success(f"{display_name} {quantity}주 매수 완료!")
                         st.rerun()
                     else:
-                        st.error("잔액이 부족합니다!")
+                        # 💡 3초 뒤에 서서히 사라지는 경고 메시지 구현
+                        trade_msg_slot.error("❌ 잔액이 부족합니다!")
+                        time.sleep(3)
+                        trade_msg_slot.empty()
                         
             with btn_sell:
                 if st.button("🔵 매도하기", use_container_width=True, key="rand_sell"):
@@ -208,13 +213,14 @@ with tab_trade:
                         st.success(f"{display_name} {quantity}주 매도 완료!")
                         st.rerun()
                     else:
-                        st.error("보유 수량이 부족합니다!")
+                        trade_msg_slot.error("❌ 보유 수량이 부족합니다!")
+                        time.sleep(3)
+                        trade_msg_slot.empty()
                         
         with col2:
             st.subheader("📊 실시간 떡락 주의 차트")
             st.line_chart(st.session_state.random_history)
             
-        # 💡 코인주 메뉴를 보고 있을 때만 1초 루프 활성화 설정
         should_rerun = True
 
     else:
@@ -278,7 +284,9 @@ with tab_trade:
                                 st.success(f"{display_name} {quantity}주 매수 완료!")
                                 st.rerun()
                             else:
-                                st.error("잔액이 부족합니다!")
+                                trade_msg_slot.error("❌ 잔액이 부족합니다!")
+                                time.sleep(3)
+                                trade_msg_slot.empty()
                                 
                     with btn_sell:
                         if st.button("🔵 매도하기", use_container_width=True, key="normal_sell"):
@@ -296,7 +304,9 @@ with tab_trade:
                                 st.success(f"{display_name} {quantity}주 매도 완료!")
                                 st.rerun()
                             else:
-                                st.error("보유 수량이 부족합니다!")
+                                trade_msg_slot.error("❌ 보유 수량이 부족합니다!")
+                                time.sleep(3)
+                                trade_msg_slot.empty()
 
                 with col2:
                     st.subheader("📊 최근 1개월 주가 흐름")
@@ -308,14 +318,18 @@ with tab_trade:
 
 # ==================== [탭 2: 아이템 상점] ====================
 with tab_shop:
-    st.header("🏪 모의투자 플렉스 백화점")
-    st.write("주식투자로 번 현금으로 살 수 있는 초호화 보상 리스트입니다.")
+    st.header("🏪 모의투자 소원 성취 상점")
+    st.write("열심히 모은 현금으로 원하는 상품 및 권리를 획득해 보세요!")
+    
+    # 💡 상점용 알림 메시지 임시 공간 생성
+    shop_msg_slot = st.empty()
+    
     st.markdown(f"### 💵 내 보유 현금: `{st.session_state.cash:,.0f} 원`")
     st.write("---")
     
-    cols = st.columns(3)
+    cols = st.columns(2)
     for index, (item_name, price) in enumerate(SHOP_ITEMS.items()):
-        with cols[index % 3]:
+        with cols[index % 2]:
             with st.container(border=True):
                 st.subheader(item_name)
                 st.markdown(f"💰 가격: **{price:,.0f} 원**")
@@ -327,12 +341,17 @@ with tab_shop:
                         
                         now_str = datetime.now().strftime("%H:%M:%S")
                         st.session_state.trade_history.append(f"[{now_str}] 🏪 상점: {item_name} 구입")
-                        st.success(f"🎉 {item_name} 구매 성공!")
+                        
+                        # 성공 메시지도 깔끔하게 상단 슬롯에 노출 후 새로고침
+                        shop_msg_slot.success(f"🎉 {item_name} 구매 성공!")
+                        time.sleep(1)
                         st.rerun()
                     else:
-                        st.error("❌ 현금이 부족합니다!")
+                        # 💡 [핵심 구현] 현금 부족 에러 발생 시 상단 슬롯에 경고를 띄우고 3초 뒤 지우기!
+                        shop_msg_slot.error("❌ 현금이 부족합니다!")
+                        time.sleep(3)
+                        shop_msg_slot.empty()
 
-# 💡 [핵심 브레이크] 코인주 탭이 활성화되어 있을 때만 1초 지연 후 루프 실행!
 if should_rerun:
     time.sleep(1)
     st.rerun()
