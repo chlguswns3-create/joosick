@@ -13,7 +13,7 @@ EXCHANGE_RATE = 1400
 
 # 주식 선택 리스트 설정
 STOCK_DICT = {
-    "🔥 [대박초이스] 무빙 코인주 (실시간 1초 변동) 🎰": ["RANDOM", "KR"],
+    "🔥 [초고위험] 무빙 코인주 (실시간 -40% ~ +60%) 🎰": ["RANDOM", "KR"],
     "삼성전자 🇰🇷": ["005930.KS", "KR"],
     "SK하이닉스 🇰🇷": ["000660.KS", "KR"],
     "애플 (Apple) 🇺🇸": ["AAPL", "US"],
@@ -35,11 +35,13 @@ if 'random_stock_price' not in st.session_state:
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
-change_percent = random.uniform(-0.05, 0.06)
+# 🔄 [변동 범위 수정] 하루아침에 한강 가거나 한남동 가거나! (-40% ~ +60% 폭등락)
+change_percent = random.uniform(-0.40, 0.60)
 st.session_state.random_stock_price *= (1 + change_percent)
 
-if st.session_state.random_stock_price < 100:
-    st.session_state.random_stock_price = 100.0
+# 휴지조각(0원)이 되어 멈추는 걸 방지하기 위해 최소 가격은 10원 설정
+if st.session_state.random_stock_price < 10:
+    st.session_state.random_stock_price = 10.0
 
 st.session_state.random_history.append(st.session_state.random_stock_price)
 if len(st.session_state.random_history) > 20:
@@ -107,7 +109,7 @@ else:
 selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
 
 if "무빙 코인주" in selected_option:
-    display_name = "🔥 [대박초이스] 무빙 코인주 (실시간 1초 변동) 🎰"
+    display_name = "🔥 [초고위험] 무빙 코인주 (실시간 -40% ~ +60%) 🎰"
     current_price_krw = st.session_state.random_stock_price
     price_display = f"{current_price_krw:,.0f} 원"
     
@@ -116,7 +118,6 @@ if "무빙 코인주" in selected_option:
         st.markdown(f"### {display_name}")
         st.metric(label="현재 주가 (1초마다 자동 변동)", value=price_display)
         
-        # 💡 [보유 수량 표시 추가!] 내 포트폴리오에서 현재 주식의 수량을 가져옵니다.
         current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
         st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
         
@@ -153,7 +154,7 @@ if "무빙 코인주" in selected_option:
                     st.error("보유 수량이 부족합니다!")
                     
     with col2:
-        st.subheader("📊 실시간 틱 차트")
+        st.subheader("📊 실시간 지옥과 천국 차트")
         st.line_chart(st.session_state.random_history)
         
     time.sleep(1)
@@ -195,7 +196,6 @@ else:
                 st.markdown(f"### {display_name}")
                 st.metric(label="현재 주가", value=price_display)
                 
-                # 💡 [보유 수량 표시 추가!] 일반 주식 및 검색 주식도 똑같이 현재 보유 수량이 뜹니다.
                 current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
                 st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
                 
