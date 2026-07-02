@@ -34,7 +34,6 @@ SHOP_ITEMS = {
     "😈 카톡 프로필 3일 지정권": 500000,
     "🍚 밥 사기": 800000,
     "🌟 소원권": 1000000,
-    "🛡️ 방패권": 2000000,
     "😂 인스타 릴스 따라하기": 100000000
 }    
 
@@ -56,23 +55,17 @@ if 'random_history' not in st.session_state:
 
 
 # =====================================================================
-# 💸 [수정 완료] 퍼센트(%) 곱하기 대신 금액 더하기/빼기 가감 방식 적용!
+# 💸 코인주 금액 더하기/빼기 가감 방식
 # =====================================================================
-# 1초마다 최소 -300원 폭락 ~ 최대 +400원 폭등 사이의 "원화 금액"을 무작위로 결정
-price_change = random.randint(-1000, 400) 
-
-# 현재 가격에 이 변동 금액을 그대로 더하거나 뺍니다.
+price_change = random.randint(-300, 400) 
 st.session_state.random_stock_price += price_change
 
-# 하한선 방어: 7원 이하로 떨어지면 7원으로 강제 방어 (상장폐지 방지)
-if st.session_state.random_stock_price < -1.0:
-    st.session_state.random_stock_price = 1.0
+if st.session_state.random_stock_price < 7:
+    st.session_state.random_stock_price = 7.0
 
-# 상한선 방어: 너무 무한대로 폭등해서 게임이 깨지는 걸 막기 위해 최고가 제한 (예: 2,000원)
 if st.session_state.random_stock_price > 2000:
     st.session_state.random_stock_price = 2000.0
 
-# 차트용 데이터 누적 및 최신 20개 유지
 st.session_state.random_history.append(st.session_state.random_stock_price)
 if len(st.session_state.random_history) > 20:
     st.session_state.random_history.pop(0)
@@ -147,7 +140,10 @@ else:
     st.sidebar.write("아직 획득한 아이템이 없습니다.")
 
 st.sidebar.write("---")
-st.sidebar.subheader("💼 내 포트폴리오")
+# ✨ [수정 부분] 포트폴리오 섹션에 보유 현금을 명확하게 시각화
+st.sidebar.subheader("💼 내 포트폴리오 자산")
+st.sidebar.write(f"💵 **보유 현금 (원화)**: {st.session_state.cash:,.0f} 원")
+
 if st.session_state.portfolio:
     for stock_name, info in list(st.session_state.portfolio.items()):
         if isinstance(info, dict) and "수량" in info and info["수량"] > 0:
@@ -155,7 +151,7 @@ if st.session_state.portfolio:
             st.sidebar.write(f"- **{stock_name}**: {info['수량']}주")
             st.sidebar.caption(f"  (평단가: {avg_price:,.0f}원)")
 else:
-    st.sidebar.write("보유 중인 주식이 없습니다.")
+    st.sidebar.write("- 보유 중인 주식이 없습니다.")
 
 st.sidebar.write("---")
 st.sidebar.subheader("📜 실시간 거래 히스토리")
