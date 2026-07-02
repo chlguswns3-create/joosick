@@ -12,7 +12,7 @@ st.title("📈 초간단 국내/해외 주식 모의투자 시뮬레이터")
 # 가상의 환율 설정 (1달러 = 1,400원)
 EXCHANGE_RATE = 1400
 
-# 주식 선택 리스트 설정 (이름도 난이도에 걸맞게 변경!)
+# 주식 선택 리스트 설정 (이름을 '💀 코인주 🎰'로 깔끔하게 변경!)
 STOCK_DICT = {
     "💀 코인주 🎰": ["RANDOM", "KR"],
     "삼성전자 🇰🇷": ["005930.KS", "KR"],
@@ -38,7 +38,7 @@ if 'random_stock_price' not in st.session_state:
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
-# 🔄 [핵심 변경] 상승은 최대 +15%, 하락은 최대 -45%로 하방 압력이 엄청난 세팅!
+# 상승 최대 +15%, 하락 최대 -45% 불지옥 밸런스 유지
 change_percent = random.uniform(-0.45, 0.15)
 st.session_state.random_stock_price *= (1 + change_percent)
 
@@ -55,7 +55,7 @@ if len(st.session_state.random_history) > 20:
 total_stock_value = 0
 
 for stock_name, info in list(st.session_state.portfolio.items()):
-    if "무빙 코인주" in stock_name:
+    if "코인주" in stock_name:
         total_stock_value += (st.session_state.random_stock_price * info["수량"])
         continue
 
@@ -126,7 +126,7 @@ else:
 # 4. 메인 화면
 selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
 
-if "무빙 코인주" in selected_option:
+if "코인주" in selected_option:
     display_name = "💀 코인주 🎰"
     current_price_krw = st.session_state.random_stock_price
     price_display = f"{current_price_krw:,.0f} 원"
@@ -134,7 +134,7 @@ if "무빙 코인주" in selected_option:
     col1, col2 = st.columns([1, 2])
     with col1:
         st.markdown(f"### {display_name}")
-        st.metric(label="현재 주가", value=price_display)
+        st.metric(label="현재 주가 (1초마다 자동 변동)", value=price_display)
         
         current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
         st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
@@ -154,7 +154,7 @@ if "무빙 코인주" in selected_option:
                     st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
                     
                     now_str = datetime.now().strftime("%H:%M:%S")
-                    st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: 무빙 코인주 {quantity}주")
+                    st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: 💀 코인주 🎰 {quantity}주")
                     
                     st.success(f"{display_name} {quantity}주 매수 완료!")
                     st.rerun()
@@ -170,7 +170,7 @@ if "무빙 코인주" in selected_option:
                     st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
                     
                     now_str = datetime.now().strftime("%H:%M:%S")
-                    st.session_state.trade_history.append(f"[{now_str}] 🔵 매도: 무빙 코인주 {quantity}주")
+                    st.session_state.trade_history.append(f"[{now_str}] 🔵 매도: 💀 코인주 🎰 {quantity}주")
                     
                     if st.session_state.portfolio[display_name]["수량"] == 0:
                         del st.session_state.portfolio[display_name]
