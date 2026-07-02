@@ -58,7 +58,7 @@ if 'random_history' not in st.session_state:
 # 💸 [수정 완료] 퍼센트(%) 곱하기 대신 금액 더하기/빼기 가감 방식 적용!
 # =====================================================================
 # 1초마다 최소 -300원 폭락 ~ 최대 +400원 폭등 사이의 "원화 금액"을 무작위로 결정
-price_change = random.randint(-500, 400) 
+price_change = random.randint(-1000, 400) 
 
 # 현재 가격에 이 변동 금액을 그대로 더하거나 뺍니다.
 st.session_state.random_stock_price += price_change
