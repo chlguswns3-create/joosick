@@ -26,7 +26,7 @@ STOCK_DICT = {
 
 # 2. 유저 데이터 및 세션 초기화
 if 'cash' not in st.session_state:
-    st.session_state.cash = 10000000  # 초기 자본: 1,000만 원
+    st.session_state.cash = 10000  # 초기 자본: 1,000만 원
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
 if 'trade_history' not in st.session_state:
