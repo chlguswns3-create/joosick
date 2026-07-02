@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import random
 import time
+from datetime import datetime  # 거래 시간을 기록하기 위한 도구 추가!
 
 # 1. 페이지 설정 및 제목
 st.set_page_config(layout="wide")
@@ -23,11 +24,13 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 2. 유저 데이터 초기화
+# 2. 유저 데이터 및 세션 초기화
 if 'cash' not in st.session_state:
     st.session_state.cash = 10000000  # 초기 자본: 1,000만 원
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
+if 'trade_history' not in st.session_state:
+    st.session_state.trade_history = []  # 📜 거래 내역을 저장할 리스트 추가!
 
 # 랜덤 주식 가격 변동 로직
 if 'random_stock_price' not in st.session_state:
@@ -73,7 +76,6 @@ for stock_name, info in list(st.session_state.portfolio.items()):
     except:
         pass
 
-# 🛡️ [수정 포인트] 자산 및 수익률 안전 계산식 적용
 total_invested = sum(info["매수총액_원화"] for info in st.session_state.portfolio.values())
 
 if total_invested > 0:
@@ -81,7 +83,6 @@ if total_invested > 0:
     total_profit = total_stock_value - total_invested
     profit_rate = (total_profit / total_invested) * 100
 else:
-    # 보유 주식이 없으면 강제로 모든 투자 가치와 손익을 0으로 락(Lock)을 겁니다.
     total_stock_value = 0
     total_assets = st.session_state.cash
     total_profit = 0
@@ -93,7 +94,6 @@ st.sidebar.metric(label="📊 총 평가 자산 (예수금+투자금)", value=f"
 st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
 st.sidebar.write(f"📈 주식 평가액: {total_stock_value:,.0f} 원")
 
-# 🛡️ 보유 주식이 있을 때만 수익률 전광판을 보여주고, 없으면 깨끗하게 숨깁니다.
 if total_invested > 0:
     st.sidebar.write("---")
     st.sidebar.metric(
@@ -111,6 +111,16 @@ if st.session_state.portfolio:
         st.sidebar.caption(f"  (평단가: {avg_price:,.0f}원)")
 else:
     st.sidebar.write("보유 중인 주식이 없습니다.")
+
+# 📜 [추가 포인트] 사이드바 최하단에 실시간 거래 내역 표시 리스트 생성
+st.sidebar.write("---")
+st.sidebar.subheader("📜 실시간 거래 히스토리")
+if st.session_state.trade_history:
+    # 가장 최근에 거래한 내역이 위로 오도록 역순으로 보여줍니다.
+    for log in reversed(st.session_state.trade_history):
+        st.sidebar.caption(log)
+else:
+    st.sidebar.write("아직 거래 내역이 없습니다.")
 
 
 # 4. 메인 화면
@@ -142,6 +152,11 @@ if "무빙 코인주" in selected_option:
                         st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
                     st.session_state.portfolio[display_name]["수량"] += quantity
                     st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
+                    
+                    # 📜 매수 기록 추가
+                    now_str = datetime.now().strftime("%H:%M:%S")
+                    st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: {display_name} {quantity}주")
+                    
                     st.success(f"{display_name} {quantity}주 매수 완료!")
                     st.rerun()
                 else:
@@ -154,6 +169,11 @@ if "무빙 코인주" in selected_option:
                     st.session_state.cash += total_cost_krw
                     st.session_state.portfolio[display_name]["수량"] -= quantity
                     st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
+                    
+                    # 📜 매도 기록 추가
+                    now_str = datetime.now().strftime("%H:%M:%S")
+                    st.session_state.trade_history.append(f"[{now_str}] 🔵 매도: {display_name} {quantity}주")
+                    
                     if st.session_state.portfolio[display_name]["수량"] == 0:
                         del st.session_state.portfolio[display_name]
                     st.success(f"{display_name} {quantity}주 매도 완료!")
@@ -220,6 +240,11 @@ else:
                                 st.session_state.portfolio[display_name] = {"수량": 0, "매수총액_원화": 0}
                             st.session_state.portfolio[display_name]["수량"] += quantity
                             st.session_state.portfolio[display_name]["매수총액_원화"] += total_cost_krw
+                            
+                            # 📜 매수 기록 추가
+                            now_str = datetime.now().strftime("%H:%M:%S")
+                            st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: {display_name} {quantity}주")
+                            
                             st.success(f"{display_name} {quantity}주 매수 완료!")
                             st.rerun()
                         else:
@@ -232,6 +257,11 @@ else:
                             st.session_state.cash += total_cost_krw
                             st.session_state.portfolio[display_name]["수량"] -= quantity
                             st.session_state.portfolio[display_name]["매수총액_원화"] -= (avg_p * quantity)
+                            
+                            # 📜 매도 기록 추가
+                            now_str = datetime.now().strftime("%H:%M:%S")
+                            st.session_state.trade_history.append(f"[{now_str}] 🔵 매도: {display_name} {quantity}주")
+                            
                             if st.session_state.portfolio[display_name]["수량"] == 0:
                                 del st.session_state.portfolio[display_name]
                             st.success(f"{display_name} {quantity}주 매도 완료!")
