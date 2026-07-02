@@ -23,21 +23,18 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 2. 🛡️ 유저 데이터 초기화 (최초 1번만 실행되어 새로고침해도 안 사라짐!)
+# 2. 유저 데이터 초기화
 if 'cash' not in st.session_state:
     st.session_state.cash = 10000000  # 초기 자본: 1,000만 원
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
 
-# 랜덤 주식의 가짜 과거 데이터 뼈대 고정
+# 랜덤 주식 가격 변동 로직
 if 'random_stock_price' not in st.session_state:
     st.session_state.random_stock_price = 10000.0
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
-
-# 🔄 1초마다 가격 변동시키는 로직 (메인 화면에서 코인주를 보고 있을 때만 작동하도록 아래로 이동시킬 수도 있지만, 세션 유지를 위해 상단 배치)
-# 단, 매수/매도 직후 세션이 꼬이지 않도록 변동폭을 안정적으로 가져갑니다.
 change_percent = random.uniform(-0.05, 0.06)
 st.session_state.random_stock_price *= (1 + change_percent)
 
@@ -68,7 +65,6 @@ for stock_name, info in list(st.session_state.portfolio.items()):
             continue
             
     try:
-        # 실제 주식은 최신 1일 데이터만 캐싱 없이 가져옴
         s_data = yf.Ticker(t_code).history(period="1d")
         if not s_data.empty:
             c_price = s_data['Close'].iloc[-1]
@@ -108,7 +104,6 @@ else:
 
 
 # 4. 메인 화면
-# 유저가 선택한 주식 상태를 지키기 위해 key값 지정
 selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
 
 if "무빙 코인주" in selected_option:
@@ -120,6 +115,10 @@ if "무빙 코인주" in selected_option:
     with col1:
         st.markdown(f"### {display_name}")
         st.metric(label="현재 주가 (1초마다 자동 변동)", value=price_display)
+        
+        # 💡 [보유 수량 표시 추가!] 내 포트폴리오에서 현재 주식의 수량을 가져옵니다.
+        current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
+        st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
         
         quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1, key="rand_qty")
         total_cost_krw = current_price_krw * quantity
@@ -157,7 +156,6 @@ if "무빙 코인주" in selected_option:
         st.subheader("📊 실시간 틱 차트")
         st.line_chart(st.session_state.random_history)
         
-    # ⏱️ 1초 대기 후 새로고침 (이때 st.session_state 안의 portfolio와 cash는 유지됩니다!)
     time.sleep(1)
     st.rerun()
 
@@ -196,6 +194,10 @@ else:
             with col1:
                 st.markdown(f"### {display_name}")
                 st.metric(label="현재 주가", value=price_display)
+                
+                # 💡 [보유 수량 표시 추가!] 일반 주식 및 검색 주식도 똑같이 현재 보유 수량이 뜹니다.
+                current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
+                st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
                 
                 quantity = st.number_input("거래 수량 선택", min_value=1, value=1, step=1, key="normal_qty")
                 total_cost_krw = current_price_krw * quantity
