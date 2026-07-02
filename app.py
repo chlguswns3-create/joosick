@@ -54,7 +54,7 @@ if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
 # 변동성 범위: -45% ~ +45%
-change_percent = random.uniform(-0.45, 0.45)
+change_percent = random.uniform(-0.90, 0.90)
 st.session_state.random_stock_price *= (1 + change_percent)
 
 if st.session_state.random_stock_price < 10:
