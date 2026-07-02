@@ -14,7 +14,7 @@ EXCHANGE_RATE = 1400
 
 # 주식 선택 리스트 설정 (이름도 난이도에 걸맞게 변경!)
 STOCK_DICT = {
-    "💀 [불지옥 난이도] 무빙 코인주 (상승 찔끔 +15% / 하락 팍팍 -45%) 🎰": ["RANDOM", "KR"],
+    "💀 코인주 🎰": ["RANDOM", "KR"],
     "삼성전자 🇰🇷": ["005930.KS", "KR"],
     "SK하이닉스 🇰🇷": ["000660.KS", "KR"],
     "애플 (Apple) 🇺🇸": ["AAPL", "US"],
@@ -127,14 +127,14 @@ else:
 selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
 
 if "무빙 코인주" in selected_option:
-    display_name = "💀 [불지옥 난이도] 무빙 코인주 (상승 찔끔 +15% / 하락 팍팍 -45%) 🎰"
+    display_name = "💀 코인주 🎰"
     current_price_krw = st.session_state.random_stock_price
     price_display = f"{current_price_krw:,.0f} 원"
     
     col1, col2 = st.columns([1, 2])
     with col1:
         st.markdown(f"### {display_name}")
-        st.metric(label="현재 주가 (1초마다 자동 변동)", value=price_display)
+        st.metric(label="현재 주가", value=price_display)
         
         current_owned = st.session_state.portfolio.get(display_name, {}).get("수량", 0)
         st.info(f"💼 **현재 내 보유 수량: {current_owned}주**")
