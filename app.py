@@ -24,7 +24,7 @@ STOCK_DICT = {
     "직접 검색해서 입력하기 🔍": ["CUSTOM", "CUSTOM"]
 }
 
-# 🛒 상점 아이템 도감 설정 (가격 및 아이콘)
+# 🛒 상점 아이템 도감 설정
 SHOP_ITEMS = {
     "☕ 스타벅스 아이스 아메리카노": 5000,
     "🍗 치킨 기프티콘 (+콜라)": 25000,
@@ -32,18 +32,18 @@ SHOP_ITEMS = {
     "아이폰 17 프로 맥스 📱": 1800000,
     "롤렉스 서브마리너 시계 ⌚": 15000000,
     "포르쉐 911 카레라 🏎️": 160000000,
-    "시그니엘 펜트하우스  penthouse 🏙️": 5000000000
+    "시그니엘 펜트하우스 🏙️": 5000000000
 }
 
 # 2. 유저 데이터 및 세션 초기화
 if 'cash' not in st.session_state:
-    st.session_state.cash = 10000  # 초기 자본: 1,000만 원
+    st.session_state.cash = 10000000  # 초기 자본: 1,000만 원
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {}  # {주식이름: {"수량": q, "매수총액_원화": total_cost}}
 if 'trade_history' not in st.session_state:
     st.session_state.trade_history = []  # 거래 내역 리스트
 if 'inventory' not in st.session_state:
-    st.session_state.inventory = {}  # 🎒 {아이템이름: 보유개수} 상점 인벤토리 추가!
+    st.session_state.inventory = {}  # 🎒 {아이템이름: 보유개수}
 
 # 랜덤 주식 가격 변동 로직
 if 'random_stock_price' not in st.session_state:
@@ -51,7 +51,7 @@ if 'random_stock_price' not in st.session_state:
 if 'random_history' not in st.session_state:
     st.session_state.random_history = [10000.0] * 10
 
-change_percent = random.uniform(-0.45, 0.45)
+change_percent = random.uniform(-0.45, 0.15)
 st.session_state.random_stock_price *= (1 + change_percent)
 
 if st.session_state.random_stock_price < 10:
@@ -107,6 +107,7 @@ st.sidebar.metric(label="📊 총 평가 자산 (예수금+투자금)", value=f"
 st.sidebar.write(f"💵 보유 현금: {st.session_state.cash:,.0f} 원")
 st.sidebar.write(f"📈 주식 평가액: {total_stock_value:,.0f} 원")
 
+# 🛡️ 버그 원인이었던 부분 안전하게 서식 수정 (+ 표시와 콤마 정렬 고침)
 if total_invested > 0:
     st.sidebar.write("---")
     st.sidebar.metric(
@@ -115,7 +116,6 @@ if total_invested > 0:
         delta=f"{profit_rate:+.2f}%"
     )
 
-# 🎒 [추가] 내 인벤토리 대시보드
 st.sidebar.write("---")
 st.sidebar.subheader("🎒 내 아이템 가방")
 owned_items = {k: v for k, v in st.session_state.inventory.items() if v > 0}
@@ -123,7 +123,7 @@ if owned_items:
     for item_name, qty in owned_items.items():
         st.sidebar.write(f"✨ **{item_name}** x {qty}개")
 else:
-    st.sidebar.write("아직 획득한 아이템이 없습니다. 상점에서 플렉스 하세요!")
+    st.sidebar.write("아직 획득한 아이템이 없습니다.")
 
 st.sidebar.write("---")
 st.sidebar.subheader("💼 내 포트폴리오")
@@ -144,10 +144,10 @@ else:
     st.sidebar.write("아직 거래 내역이 없습니다.")
 
 
-# 4. 메인 화면 상단 탭 나누기 (주식 거래 vs 아이템 상점)
+# 4. 메인 화면 탭 구성
 tab_trade, tab_shop = st.tabs(["📊 주식 모의투자 거래소", "🏪 플렉스 아이템 상점"])
 
-# ==================== [탭 1: 주식 거래기능] ====================
+# ==================== [탭 1: 주식 거래소] ====================
 with tab_trade:
     selected_option = st.selectbox("투자할 주식을 선택하거나 검색을 선택하세요 👇", list(STOCK_DICT.keys()), key="main_stock_select")
 
@@ -210,7 +210,6 @@ with tab_trade:
         st.rerun()
 
     else:
-        # 기존 실제 주식 및 검색 로직
         if selected_option == "직접 검색해서 입력하기 🔍":
             search_ticker = st.text_input("조회하고 싶은 주식의 티커를 입력하세요 (예: MSFT, 005380.KS)", "MSFT", key="custom_ticker_input").upper()
             ticker = search_ticker
@@ -298,32 +297,30 @@ with tab_trade:
         except Exception as e:
             st.error(f"오류가 발생했습니다: {e}")
 
-# ==================== [탭 2: 아이템 상점 기능] ====================
+# ==================== [탭 2: 아이템 상점] ====================
 with tab_shop:
     st.header("🏪 모의투자 플렉스 백화점")
-    st.write("주식투자로 번 현금(`보유 현금`)으로 살 수 있는 초호화 보상 리스트입니다. 한강 갈지 펜트하우스 갈지 증명해 보세요!")
-    st.write(f"💵 **내 보유 현금: {st.session_state.cash:,.0f} 원**")
+    st.write("주식투자로 번 현금으로 살 수 있는 초호화 보상 리스트입니다.")
+    st.markdown(f"### 💵 내 보유 현금: `{st.session_state.cash:,.0f} 원`")
     st.write("---")
     
-    # 그리드 레이아웃으로 아이템 리스트 나열하기
+    # 깔끔하게 컴포넌트를 다시 렌더링하기 위해 그리드 레이아웃 생성
     cols = st.columns(3)
     for index, (item_name, price) in enumerate(SHOP_ITEMS.items()):
         with cols[index % 3]:
-            st.subheader(item_name)
-            st.write(f"💰 가격: **{price:,.0f} 원**")
-            
-            # 아이템 구매 버튼 만들기
-            if st.button(f"🛒 {item_name.split()[0]} 구매", key=f"buy_item_{index}", use_container_width=True):
-                if st.session_state.cash >= price:
-                    st.session_state.cash -= price
-                    # 인벤토리에 아이템 개수 추가
-                    st.session_state.inventory[item_name] = st.session_state.inventory.get(item_name, 0) + 1
-                    
-                    # 거래 히스토리에 상점 구매 내역도 기록!
-                    now_str = datetime.now().strftime("%H:%M:%S")
-                    st.session_state.trade_history.append(f"[{now_str}] 🏪 상점: {item_name} 1개 구입")
-                    
-                    st.success(f"🎉 {item_name} 구매 성공! 인벤토리에 저장되었습니다.")
-                    st.rerun()
-                else:
-                    st.error("❌ 현금이 부족합니다! 주식으로 돈을 더 벌어오세요.")
+            # 컨테이너 상자로 감싸서 카드형 UI 디자인 적용
+            with st.container(border=True):
+                st.subheader(item_name)
+                st.markdown(f"💰 가격: **{price:,.0f} 원**")
+                
+                if st.button(f"🛒 구매하기", key=f"buy_{index}", use_container_width=True):
+                    if st.session_state.cash >= price:
+                        st.session_state.cash -= price
+                        st.session_state.inventory[item_name] = st.session_state.inventory.get(item_name, 0) + 1
+                        
+                        now_str = datetime.now().strftime("%H:%M:%S")
+                        st.session_state.trade_history.append(f"[{now_str}] 🏪 상점: {item_name} 구입")
+                        st.success(f"🎉 {item_name} 구매 성공!")
+                        st.rerun()
+                    else:
+                        st.error("❌ 현금이 부족합니다!")
