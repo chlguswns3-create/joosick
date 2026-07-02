@@ -31,24 +31,19 @@ STOCK_DICT = {
 
 # 🛒 상점 아이템 리스트 설정
 SHOP_ITEMS = {
-    "🐶 별이 만나기": 500,
     "☕ 아메리카노 기프티콘": 100000,
-    "🥤 편의점 셔틀권": 250000,
     "☕ 카페 사기": 400000,
-    "😈 카톡 프로필 3일 지정권": 500000,
     "🍚 밥 사기": 800000,
-    "🌟 소원권": 1000000,
-    "😂 인스타 릴스 따라하기": 100000000
-}    
+    "🌟 소원권": 1000000
+}
 
 # --- 💾 브라우저 창고에서 기존 데이터 불러오기 로직 ---
-# 로컬 스토리지에서 세이브 데이터 읽어오기
 saved_cash = local_storage.getItem("game_cash")
 saved_portfolio = local_storage.getItem("game_portfolio")
 saved_history = local_storage.getItem("game_history")
 saved_inventory = local_storage.getItem("game_inventory")
 
-# 2. 유저 데이터 세션 및 초기값 설정 (저장된 게 있으면 불러오고, 없으면 신규 생성)
+# 2. 유저 데이터 세션 및 초기값 설정
 if 'cash' not in st.session_state:
     st.session_state.cash = int(saved_cash) if saved_cash is not None else 10000
 
@@ -70,7 +65,7 @@ if 'inventory' not in st.session_state:
     except:
         st.session_state.inventory = {}
 
-# 데이터 저장 함수 (돈이나 가방이 바뀔 때마다 실행됨)
+# 데이터 저장 함수
 def save_game_data():
     local_storage.setItem("game_cash", str(st.session_state.cash))
     local_storage.setItem("game_portfolio", json.dumps(st.session_state.portfolio, ensure_ascii=False))
@@ -182,7 +177,11 @@ else:
 st.sidebar.write("---")
 st.sidebar.subheader("⚙️ 게임 초기화")
 if st.sidebar.button("♻️ 자산 처음부터 리셋하기"):
-    local_storage.clear()
+    # 💡 [에러 수정] 에러가 나지 않는 방식으로 안전하게 값들을 지우고 강제 세팅
+    local_storage.setItem("game_cash", "10000")
+    local_storage.setItem("game_portfolio", "{}")
+    local_storage.setItem("game_history", "[]")
+    local_storage.setItem("game_inventory", "{}")
     st.session_state.clear()
     st.rerun()
 
@@ -229,7 +228,7 @@ if menu == "📊 주식 모의투자 거래소":
                         
                         now_str = datetime.now().strftime("%H:%M:%S")
                         st.session_state.trade_history.append(f"[{now_str}] 🔴 매수: 💀 코인주 🎰 {quantity}주")
-                        save_game_data()  # 창고 저장
+                        save_game_data()
                         st.success(f"{display_name} {quantity}주 매수 완료!")
                         st.rerun()
                     else:
@@ -250,7 +249,7 @@ if menu == "📊 주식 모의투자 거래소":
                         
                         if st.session_state.portfolio[display_name]["수량"] == 0:
                             del st.session_state.portfolio[display_name]
-                        save_game_data()  # 창고 저장
+                        save_game_data()
                         st.success(f"{display_name} {quantity}주 매도 완료!")
                         st.rerun()
                     else:
@@ -265,7 +264,6 @@ if menu == "📊 주식 모의투자 거래소":
         should_rerun = True
 
     else:
-        # 일반 주식 로직 생략 없이 동일 유지
         if selected_option == "직접 검색해서 입력하기 🔍":
             search_ticker = st.text_input("조회하고 싶은 주식의 티커를 입력하세요 (예: MSFT, 005380.KS)", "MSFT", key="custom_ticker_input").upper()
             ticker = search_ticker
@@ -384,7 +382,7 @@ elif menu == "🏪 플렉스 아이템 상점":
                         now_str = datetime.now().strftime("%H:%M:%S")
                         st.session_state.trade_history.append(f"[{now_str}] 🏪 상점: {item_name} 구입")
                         
-                        save_game_data()  # 창고 저장
+                        save_game_data()
                         shop_msg_slot.success(f"🎉 {item_name} 구매 성공!")
                         time.sleep(1)
                         st.rerun()
