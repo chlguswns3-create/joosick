@@ -65,8 +65,8 @@ price_change = random.randint(-1000, 400)
 st.session_state.random_stock_price += price_change
 
 # 하한선 방어: 7원 이하로 떨어지면 7원으로 강제 방어 (상장폐지 방지)
-if st.session_state.random_stock_price < 7:
-    st.session_state.random_stock_price = 7.0
+if st.session_state.random_stock_price < -1.0:
+    st.session_state.random_stock_price = 1.0
 
 # 상한선 방어: 너무 무한대로 폭등해서 게임이 깨지는 걸 막기 위해 최고가 제한 (예: 2,000원)
 if st.session_state.random_stock_price > 2000:
